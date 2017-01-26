@@ -198,9 +198,23 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-    boot_map_region(kern_pgdir,KERNBASE,0xFFFFFFFF - KERNBASE,0x0,PTE_W|PTE_P);
     
-	// Check that the initial page directory has been set up correctly.
+    
+    boot_map_region(kern_pgdir,KERNBASE,0xFFFFFFFF-KERNBASE,0x0,PTE_W|PTE_P);
+    
+    //////////////////////////////////////
+    //for challenge: PTE_PS
+    /*uint32_t cr4;
+    cr4 = rcr4();
+    cr4 |= CR4_PSE;
+    lcr4(cr4);
+    for(int i=0;i<((0xFFFFFFFF-KERNBASE)>>22)+1;i++){
+        kern_pgdir[PDX(KERNBASE+i*PTSIZE)]=PTE_ADDR(i*PTSIZE)|PTE_W|PTE_P|PTE_PS;
+    }*/
+    //should comment check_kern_pgdir()
+    ////////////////////////////////////
+	
+    // Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
 	// Switch from the minimal entry page directory to the full kern_pgdir
@@ -220,7 +234,8 @@ mem_init(void)
 	cr0 |= CR0_PE|CR0_PG|CR0_AM|CR0_WP|CR0_NE|CR0_MP;
 	cr0 &= ~(CR0_TS|CR0_EM);
 	lcr0(cr0);
-
+    
+    
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
 }
