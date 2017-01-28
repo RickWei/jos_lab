@@ -7,6 +7,7 @@
 #include <inc/assert.h>
 #include <inc/x86.h>
 
+#include <kern/pmap.h>
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
@@ -24,7 +25,12 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-    { "backtrace", "display a listing of function call frames", mon_backtrace }
+    { "backtrace", "display a listing of function call frames", mon_backtrace },
+    { "showmappings", "display the information of page tables in the certain range", mon_showmappings },
+    { "set", "set or clear the permission of page", mon_set },
+    { "showvm", "Dump the contents of a range of memory given virtual address range", mon_showvm },
+    { "showpm", "Dump the contents of a range of memory given physical address range", mon_showpm }
+    
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -74,7 +80,123 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+int str2int(char *s,int base){
+    int temp=0;
+    if (base==16) {
+        s+=2;
+        while (*s!='\0') {
+            if (*s<='9'&&*s>='0') {
+                temp=temp*16+(*s-'0');
+            }
+            else if (*s<='f'&&*s>='a'){
+                temp=temp*16+(*s-'a')+10;
+            }
+            else {
+                temp=temp*16+(*s-'A')+10;
+            }
+            s++;
+        }
+    }
+    else{
+        while (*s!='\0') {
+            temp=temp*10+(*s-'0');
+            s++;
+        }
+    }
+    
+    return temp;
+}
 
+extern pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
+extern pde_t *kern_pgdir;
+int
+mon_showmappings(int argc, char **argv, struct Trapframe *tf){
+    if (argc!=3) {
+        cprintf("FORMAT WRONG:showmappings begin_addr end_addr\n");
+        return 0;
+    }
+    uintptr_t begin_addr=str2int(argv[1],16);
+    uintptr_t end_addr=str2int(argv[2],16);
+    for (int addr=begin_addr; addr<=end_addr; addr+=0x1000) {
+        pte_t *pte=pgdir_walk(kern_pgdir,(void*)addr,0);
+        if (!pte) {
+            cprintf("addr: %x unmapped\n",addr);
+            continue;
+        }
+        cprintf("vaddr[%x,%x) paddr:%p with ",addr,addr+0x1000,*pte&0xFFFFF000);
+        cprintf("%c%c%c\n",(*pte&PTE_U)?'U':'-',(*pte&PTE_W)?'W':'-',(*pte&PTE_P)?'P':'-');
+    }
+    return 0;
+}
+
+int mon_set(int argc, char **argv, struct Trapframe *tf) {
+    if (argc!=4) {
+        cprintf("FORMAT WRONG:setper addr [0|1:clear or set] [P|W|U]\n");
+        return 0;
+    }
+    uintptr_t addr=str2int(argv[1],16);
+    pte_t *pte=pgdir_walk(kern_pgdir,(void *)addr,0);
+    if (!pte) {
+        cprintf("addr: %x unmapped\n",addr);
+        return 0;
+    }
+    cprintf("%x before set: ",addr);
+    cprintf("%c%c%c\n",(*pte&PTE_U)?'U':'-',(*pte&PTE_W)?'W':'-',(*pte&PTE_P)?'P':'-');
+    uint32_t perm=0;
+    if (argv[3][0]=='P') perm=PTE_P;
+    if (argv[3][0]=='W') perm=PTE_W;
+    if (argv[3][0]=='U') perm=PTE_U;
+    if (argv[2][0]=='0')
+        *pte=*pte&~perm;
+    else
+        *pte=*pte|perm;
+    cprintf("%x after  set: ", addr);
+    cprintf("%c%c%c\n",(*pte&PTE_U)?'U':'-',(*pte&PTE_W)?'W':'-',(*pte&PTE_P)?'P':'-');
+    return 0;
+}
+
+int mon_showvm(int argc, char **argv, struct Trapframe *tf){
+    if (argc!=3) {
+        cprintf("FORMAT WRONG: showvm addr n\n");
+        return 0;
+    }
+    int** addr=(int**)str2int(argv[1],16);
+    int n=str2int(argv[2],10);
+    for (int i=0;i<n;i+=4)
+        cprintf("%x:0x%08x 0x%08x 0x%08x 0x%08x\n",addr+i,addr[i],addr[i+1],addr[i+2],addr[i+3]);
+    return 0;
+}
+
+int mon_showpm(int argc, char **argv, struct Trapframe *tf){
+    if (argc!=3) {
+        cprintf("FORMAT WRONG: showpm addr n\n");
+        return 0;
+    }
+    physaddr_t addr=str2int(argv[1],16);
+    int n=str2int(argv[2],10);
+    int base=ROUNDDOWN(addr,PGSIZE);
+    int off=addr-base;
+    while (n) {
+        int count=(off+n)<PGSIZE?n:PGSIZE-off;
+        for (int i=0; i<1024; i++) {
+            pde_t pde=(pde_t)kern_pgdir[i];
+            if (pde) {
+                pte_t* pgtable=KADDR(PTE_ADDR(pde));
+                for (int j=0; j<1024; j++) {
+                    if ((pgtable[j]&(~0xFFF))==base) {
+                        uint32_t* va=(uint32_t*)((i<<PDXSHIFT)|(j<<PTXSHIFT));
+                        for (int i=off;i<count;i+=4)
+                            cprintf("%x:0x%08x 0x%08x 0x%08x 0x%08x\n",va+i,va[i],va[i+1],va[i+2],va[i+3]);
+                    }
+                }
+            }
+        }
+        n=n-count;
+        off=0;
+    }
+    
+    return 0;
+}
 
 /***** Kernel monitor command interpreter *****/
 
