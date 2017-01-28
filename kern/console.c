@@ -158,14 +158,13 @@ cga_init(void)
 }
 
 
-
 static void
 cga_putc(int c)
 {
 	// if no attribute given, then use black on white
 	if (!(c & ~0xFF))
 		c |= 0x0700;
-
+    
 	switch (c & 0xff) {
 	case '\b':
 		if (crt_pos > 0) {
@@ -192,6 +191,7 @@ cga_putc(int c)
 	}
 
 	// What is the purpose of this?
+    // when screen full, scroll a line
 	if (crt_pos >= CRT_SIZE) {
 		int i;
 
