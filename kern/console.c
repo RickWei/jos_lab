@@ -158,7 +158,6 @@ cga_init(void)
 }
 
 
-
 static void
 cga_putc(int c)
 {

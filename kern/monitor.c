@@ -242,12 +242,16 @@ runcmd(char *buf, struct Trapframe *tf)
 	return 0;
 }
 
+#define RED 4
+#define BLUE 1
+#define GREEN 2
+
 void
 monitor(struct Trapframe *tf)
 {
 	char *buf;
 
-	cprintf("Welcome to the JOS kernel monitor!\n");
+	cprintf("Welcome to the %Cc%Cc%Cc kernel monitor!\n",RED,'J',BLUE,'O',GREEN,'S');
 	cprintf("Type 'help' for a list of commands.\n");
     
     //int x = 1, y = 3, z = 4;
