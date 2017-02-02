@@ -58,7 +58,7 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
-
+/*
 extern void t_divide();
 extern void t_debug();
 extern void t_nmi();
@@ -78,6 +78,7 @@ extern void t_fperr();
 extern void t_align();
 extern void t_mchk();
 extern void t_simderr();
+*/
 
 void
 trap_init(void)
@@ -85,10 +86,11 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+    /*
     SETGATE(idt[T_DIVIDE],0,GD_KT,t_divide,0);
     SETGATE(idt[T_DEBUG],0,GD_KT,t_debug,0);
     SETGATE(idt[T_NMI],0,GD_KT,t_nmi,0);
-    SETGATE(idt[T_BRKPT],0,GD_KT,t_brkpt,0);
+    SETGATE(idt[T_BRKPT],0,GD_KT,t_brkpt,3);
     SETGATE(idt[T_OFLOW],0,GD_KT,t_oflow,0);
     SETGATE(idt[T_BOUND],0,GD_KT,t_bound,0);
     SETGATE(idt[T_ILLOP],0,GD_KT,t_illop,0);
@@ -106,6 +108,17 @@ trap_init(void)
     SETGATE(idt[T_SIMDERR],0,GD_KT,t_simderr,0);
     
     SETGATE(idt[T_SYSCALL],0,GD_KT,t_syscall,3);
+    */
+    
+    //challenge
+    extern void (*trap_fun[])();
+    for (int i=0;i<=16;i++)
+        if (i==T_BRKPT)
+            SETGATE(idt[i],0,GD_KT,trap_fun[i],3)
+            else if (i!=2&&i!=15) {
+                SETGATE(idt[i],0,GD_KT,trap_fun[i],0);
+            }
+    SETGATE(idt[48],0,GD_KT,trap_fun[48],3);
     
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -184,6 +197,25 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+    if (tf->tf_trapno==T_PGFLT) {
+        page_fault_handler(tf);
+        return;
+    }
+    if (tf->tf_trapno==T_BRKPT) {
+        monitor(tf);
+        return;
+    }
+    if (tf->tf_trapno==T_SYSCALL) {
+        tf->tf_regs.reg_eax=
+            syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx,
+                    tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+        return;
+    }
+    if (tf->tf_trapno==T_DEBUG) {
+        cprintf("%08x\n",*(int*)(tf->tf_cs+tf->tf_eip));
+        monitor(tf);
+        return;
+    }
     
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

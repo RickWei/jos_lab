@@ -282,7 +282,7 @@ region_alloc(struct Env *e, void *va, size_t len)
     int end=(int)va+len;
     va=ROUNDDOWN(va,PGSIZE);
     end=ROUNDUP(end,PGSIZE);
-    while ((int)va<=end) {
+    while ((int)va<end) {
         struct PageInfo *pp=page_alloc(0);
         if(!pp){
             panic("region_alloc failed!\n");

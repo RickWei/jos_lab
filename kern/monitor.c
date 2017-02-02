@@ -30,7 +30,9 @@ static struct Command commands[] = {
     { "showmappings", "display the information of page tables in the certain range", mon_showmappings },
     { "set", "set or clear the permission of page", mon_set },
     { "showvm", "Dump the contents of a range of memory given virtual address range", mon_showvm },
-    { "showpm", "Dump the contents of a range of memory given physical address range", mon_showpm }
+    { "showpm", "Dump the contents of a range of memory given physical address range", mon_showpm },
+    { "si", "single-step one instruction", mon_si},
+    { "continue", "continue the execution", mon_continue}
     
 };
 
@@ -198,6 +200,22 @@ int mon_showpm(int argc, char **argv, struct Trapframe *tf){
     
     return 0;
 }
+
+int mon_si(int argc, char **argv, struct Trapframe *tf){
+    uint32_t eflags=tf->tf_eflags;
+    eflags|=FL_TF;
+    tf->tf_eflags=eflags;
+    return -1;
+}
+
+int mon_continue(int argc, char **argv, struct Trapframe *tf){
+    uint32_t eflags=tf->tf_eflags;
+    eflags|=FL_RF;
+    eflags&=~FL_TF;
+    tf->tf_eflags=eflags;
+    return -1;
+}
+
 
 /***** Kernel monitor command interpreter *****/
 

@@ -3,6 +3,13 @@
 
 #include <inc/types.h>
 
+
+//challenge
+#define wrmsr(msr,val1,val2) \
+    __asm__ __volatile__("wrmsr" \
+    : /* no outputs */ \
+    : "c" (msr), "a" (val1), "d" (val2))
+
 static inline void
 breakpoint(void)
 {
@@ -260,5 +267,8 @@ xchg(volatile uint32_t *addr, uint32_t newval)
 		     : "cc");
 	return result;
 }
+
+
+
 
 #endif /* !JOS_INC_X86_H */
