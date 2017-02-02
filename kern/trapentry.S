@@ -21,7 +21,10 @@
  *   void NAME();
  * where NAME is the argument passed to TRAPHANDLER.
  */
-#define TRAPHANDLER(name, num)						\
+#define TRAPHANDLER(name, num)\
+.data;\
+	.long name;\
+.text;\
 	.globl name;		/* define global symbol for 'name' */	\
 	.type name, @function;	/* symbol type is function */		\
 	.align 2;		/* align function definition */		\
@@ -34,7 +37,10 @@
  * format in either case.
  */
 #define TRAPHANDLER_NOEC(name, num)					\
-	.globl name;							\
+.data;\
+	.long name;\
+.text;\
+    .globl name;							\
 	.type name, @function;						\
 	.align 2;							\
 	name:								\
@@ -42,15 +48,68 @@
 	pushl $(num);							\
 	jmp _alltraps
 
-.text
 
+.data
+    .global trap_fun
+    trap_fun:
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
-
-
+    TRAPHANDLER_NOEC(t_divide,T_DIVIDE)
+    TRAPHANDLER_NOEC(t_debug,T_DEBUG)
+    TRAPHANDLER_NOEC(t_nmi,T_NMI)
+    TRAPHANDLER_NOEC(t_brkpt,T_BRKPT)
+    TRAPHANDLER_NOEC(t_oflow,T_OFLOW)
+    TRAPHANDLER_NOEC(t_bound,T_BOUND)
+    TRAPHANDLER_NOEC(t_illop,T_ILLOP)
+    TRAPHANDLER_NOEC(t_device,T_DEVICE)
+    TRAPHANDLER(t_debflt,T_DBLFLT)
+    .data
+        .space 4
+    TRAPHANDLER(t_tss,T_TSS)
+    TRAPHANDLER(t_segnp,T_SEGNP)
+    TRAPHANDLER(t_stack,T_STACK)
+    TRAPHANDLER(t_gpflt,T_GPFLT)
+    TRAPHANDLER(t_pgflt,T_PGFLT)
+    .data
+        .space 4
+    TRAPHANDLER_NOEC(t_fperr,T_FPERR)
+    TRAPHANDLER(t_align,T_ALIGN)
+    TRAPHANDLER_NOEC(t_mchk,T_MCHK)
+    TRAPHANDLER_NOEC(t_simderr,T_SIMDERR)
+    .data
+        .space 4*28
+    TRAPHANDLER_NOEC(t_syscall,T_SYSCALL)
 
 /*
  * Lab 3: Your code here for _alltraps
  */
+.text
+
+_alltraps:
+/*
+Your _alltraps should:
+
+1.push values to make the stack look like a struct Trapframe
+2.load GD_KD into %ds and %es
+3.pushl %esp to pass a pointer to the Trapframe as an argument to trap()
+4.call trap (can trap ever return?)
+*/
+    pushl %es
+    pushl %ds
+    pushal
+    movl $GD_KD,%eax
+    movl %eax,%es
+    movl %eax,%ds
+    pushl %esp
+    call trap
+
+//shouldn't return
+    popl %esp
+    popal
+    popl %ds
+    popl %es
+    iret
+
+
 

@@ -3,7 +3,9 @@
 #include <inc/stdio.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/x86.h>
 
+#include <kern/syscall.h>
 #include <kern/monitor.h>
 #include <kern/console.h>
 #include <kern/pmap.h>
@@ -17,6 +19,16 @@
 
 static void boot_aps(void);
 
+#define IA32_SYSENTER_CS 0x174
+#define IA32_SYSENTER_ESP 0x175
+#define IA32_SYSENTER_EIP 0x176
+
+void sysenter_init(void){
+    wrmsr(IA32_SYSENTER_CS,GD_KT,0);
+    wrmsr(IA32_SYSENTER_ESP,KSTACKTOP,0);
+    wrmsr(IA32_SYSENTER_EIP,syscall_fast,0);
+    return;
+}
 
 void
 i386_init(void)
@@ -40,6 +52,7 @@ i386_init(void)
 	// Lab 3 user environment initialization functions
 	env_init();
 	trap_init();
+<<<<<<< HEAD
 
 	// Lab 4 multiprocessor initialization functions
 	mp_init();
@@ -54,12 +67,19 @@ i386_init(void)
 	// Starting non-boot CPUs
 	boot_aps();
 
+=======
+    sysenter_init();
+>>>>>>> lab3
 #if defined(TEST)
 	// Don't touch -- used by grading script!
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
+<<<<<<< HEAD
 	ENV_CREATE(user_primes, ENV_TYPE_USER);
+=======
+	ENV_CREATE(user_buggyhello2, ENV_TYPE_USER);
+>>>>>>> lab3
 #endif // TEST*
 
 	// Schedule and run the first user environment!

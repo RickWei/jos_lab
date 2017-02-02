@@ -20,9 +20,10 @@ sys_cputs(const char *s, size_t len)
 {
 	// Check that the user has permission to read memory [s, s+len).
 	// Destroy the environment if not.
-
-	// LAB 3: Your code here.
-
+    
+    // LAB 3: Your code here.
+    user_mem_assert(curenv,s,len,PTE_U);
+    
 	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
 }
@@ -270,12 +271,68 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
-
-	panic("syscall not implemented");
-
-	switch (syscallno) {
-	default:
-		return -E_INVAL;
-	}
+    
+    
+    //panic("syscall not implemented");
+    int ret = 0;
+    switch (syscallno) {
+        case SYS_cputs:
+            sys_cputs((char*)a1, a2);
+            ret = 0;
+            break;
+        case SYS_cgetc:
+            ret = sys_cgetc();
+            break;
+        case SYS_getenvid:
+            ret = sys_getenvid();
+            break;
+        case SYS_env_destroy:
+            sys_env_destroy(a1);
+            ret = 0;
+            break;
+        default:
+            ret = -E_INVAL;
+    }
+    return ret;
 }
+
+void
+syscall_fast()
+{
+    uint32_t syscallno,a1,a2,a3,a4;
+    uint32_t ret_eip,ret_esp;
+    asm volatile("mov %%eax,%0\n"
+                 "mov %%edx,%1\n"
+                 "mov %%ecx,%2\n"
+                 "mov %%ebx,%3\n"
+                 "mov %%edi,%4\n"
+                 "mov %%esi,%5\n"
+                 "mov 0(%%ebp),%%eax\n"
+                 "mov %%eax,%6\n"
+                 :"=m"(syscallno),"=m"(a1),"=m"(a2),"=m"(a3),"=m"(a4),"=m"(ret_eip),"=m"(ret_esp));
+    int ret=0;
+    switch (syscallno) {
+        case SYS_cputs:
+            sys_cputs((char*)a1, a2);
+            ret = 0;
+            break;
+        case SYS_cgetc:
+            ret = sys_cgetc();
+            break;
+        case SYS_getenvid:
+            ret = sys_getenvid();
+            break;
+        case SYS_env_destroy:
+            sys_env_destroy(a1);
+            ret = 0;
+            break;
+        default:
+            ret = -E_INVAL;
+    }
+    asm volatile("movl %0,%%eax\n"
+                 "sysexit\n"
+                 :
+                 :"m"(ret), "d"(ret_eip),"c"(ret_esp));
+}
+
 
