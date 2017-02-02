@@ -279,18 +279,18 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
     
+    int end=(int)va+len;
     va=ROUNDDOWN(va,PGSIZE);
-    len=ROUNDUP(len,PGSIZE);
-    while (len) {
+    end=ROUNDUP(end,PGSIZE);
+    while ((int)va<=end) {
         struct PageInfo *pp=page_alloc(0);
         if(!pp){
             panic("region_alloc failed!\n");
         }
-        if(page_insert(e->env_pgdir,pp,va,PTE_U|PTE_W)){
+        if(page_insert(e->env_pgdir,pp,va,PTE_U|PTE_W|PTE_P)){
             panic("region_alloc failed!\n");
         }
         va+=PGSIZE;
-        len-=PGSIZE;
     }
     
     
@@ -362,6 +362,7 @@ load_icode(struct Env *e, uint8_t *binary)
         if (ph->p_type!=ELF_PROG_LOAD) {
             continue;
         }
+        
         region_alloc(e,(void*)ph->p_va,ph->p_memsz);
         memset((void*)ph->p_va,0,ph->p_memsz);
         memcpy((void*)ph->p_va,binary+ph->p_offset,ph->p_filesz);
