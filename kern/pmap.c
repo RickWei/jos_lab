@@ -285,6 +285,10 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+    for (int i=0; i<NCPU; i++) {
+        uintptr_t kstacktop_i=KSTACKTOP-i*(KSTKSIZE+KSTKGAP);
+        boot_map_region(kern_pgdir,kstacktop_i-KSTKSIZE,KSTKSIZE,PADDR(percpu_kstacks[i]),PTE_W);
+    }
 
 }
 
@@ -338,6 +342,11 @@ page_init(void)
             continue;
         }
         if (i>=EXTPHYSMEM/PGSIZE&&(char*)page2kva(&pages[i])<first_free_page) {
+            pages[i].pp_ref++;
+            pages[i].pp_link = NULL;
+            continue;
+        }
+        if (i==MPENTRY_PADDR/PGSIZE) {
             pages[i].pp_ref++;
             pages[i].pp_link = NULL;
             continue;
@@ -461,7 +470,7 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
-    for(int i=0;i<size/PGSIZE+1;i++){
+    for(int i=0;i<size/PGSIZE;i++){
         pte_t* pte=pgdir_walk(pgdir,(void *)(va+i*PGSIZE),1);
         *pte = PTE_ADDR(pa+i*PGSIZE)|perm|PTE_P;
     }
@@ -616,8 +625,17 @@ mmio_map_region(physaddr_t pa, size_t size)
 	//
 	// Hint: The staff solution uses boot_map_region.
 	//
-	// Your code here:
-	panic("mmio_map_region not implemented");
+    // Your code here:
+    uintptr_t end=ROUNDUP(pa+size,PGSIZE);
+    pa=ROUNDDOWN(pa, PGSIZE);
+    size=end-pa;
+    if (base+size>=MMIOLIM) panic("not enough memory");
+    boot_map_region(kern_pgdir,base,size,pa,PTE_PCD|PTE_PWT|PTE_W);
+    base+=size;
+    return (void*)(base-size);
+
+    
+	//panic("mmio_map_region not implemented");
 }
 
 static uintptr_t user_mem_check_addr;

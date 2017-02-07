@@ -51,8 +51,9 @@ i386_init(void)
 
 	// Lab 3 user environment initialization functions
 	env_init();
-	trap_init();
-<<<<<<< HEAD
+    trap_init();
+    //challenge
+    sysenter_init();
 
 	// Lab 4 multiprocessor initialization functions
 	mp_init();
@@ -63,25 +64,24 @@ i386_init(void)
 
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
-
+    lock_kernel();
+    
 	// Starting non-boot CPUs
 	boot_aps();
 
-=======
-    sysenter_init();
->>>>>>> lab3
 #if defined(TEST)
 	// Don't touch -- used by grading script!
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-<<<<<<< HEAD
-	ENV_CREATE(user_primes, ENV_TYPE_USER);
-=======
-	ENV_CREATE(user_buggyhello2, ENV_TYPE_USER);
->>>>>>> lab3
+    ENV_CREATE(user_dumbfork,ENV_TYPE_USER);
+    //ENV_CREATE(user_yield,ENV_TYPE_USER);
+    //ENV_CREATE(user_yield,ENV_TYPE_USER);
+    //ENV_CREATE(user_yield,ENV_TYPE_USER);
 #endif // TEST*
 
+    ///////////TEST
+    
 	// Schedule and run the first user environment!
 	sched_yield();
 }
@@ -102,7 +102,6 @@ boot_aps(void)
 	// Write entry code to unused memory at MPENTRY_PADDR
 	code = KADDR(MPENTRY_PADDR);
 	memmove(code, mpentry_start, mpentry_end - mpentry_start);
-
 	// Boot each AP one at a time
 	for (c = cpus; c < cpus + ncpu; c++) {
 		if (c == cpus + cpunum())  // We've started already.
@@ -136,7 +135,9 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
-
+    lock_kernel();
+    sched_yield();
+    
 	// Remove this after you finish Exercise 4
 	for (;;);
 }

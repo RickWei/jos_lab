@@ -157,7 +157,22 @@ trap_init_percpu(void)
 	// user space on that CPU.
 	//
 	// LAB 4: Your code here:
-
+    
+    int i=cpunum();
+    thiscpu->cpu_ts.ts_esp0 = KSTACKTOP;
+    thiscpu->cpu_ts.ts_ss0 = GD_KD;
+    thiscpu->cpu_ts.ts_iomb = sizeof(struct Taskstate);
+    
+    gdt[(GD_TSS0 >> 3) + i] = SEG16(STS_T32A, (uint32_t) (&(thiscpu->cpu_ts)),
+                              sizeof(struct Taskstate) - 1, 0);
+    gdt[(GD_TSS0 >> 3) + i].sd_s = 0;
+    
+    ltr(GD_TSS0+8*i);
+    
+    lidt(&idt_pd);
+    
+    
+    /////////////////////////////////////////
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
 	ts.ts_esp0 = KSTACKTOP;
@@ -175,6 +190,7 @@ trap_init_percpu(void)
 
 	// Load the IDT
 	lidt(&idt_pd);
+     
 }
 
 void
@@ -299,9 +315,11 @@ trap(struct Trapframe *tf)
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
-		// LAB 4: Your code here.
+        // LAB 4: Your code here.
+        lock_kernel();
+        
 		assert(curenv);
-
+        
 		// Garbage collect if current enviroment is a zombie
 		if (curenv->env_status == ENV_DYING) {
 			env_free(curenv);
