@@ -98,6 +98,7 @@ Your _alltraps should:
     pushl %es
     pushl %ds
     pushal
+    //fxsave (%esp) //challenge
     movl $GD_KD,%eax
     movl %eax,%es
     movl %eax,%ds

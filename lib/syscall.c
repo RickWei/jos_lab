@@ -137,3 +137,14 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
+//challenge
+int
+sys_proc_save(envid_t envid, struct proc_status *ps)
+{
+    return syscall(SYS_proc_save, 1, envid, (uint32_t)ps, 0, 0, 0);
+}
+int
+sys_proc_restore(envid_t envid, const struct proc_status *ps)
+{
+    return syscall(SYS_proc_restore, 1, envid, (uint32_t)ps, 0, 0, 0);
+}

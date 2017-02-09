@@ -331,6 +331,51 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+//challenge
+static int
+sys_change_pr(int pr) {
+    curenv->pr=pr;
+    return 0;
+}
+
+static int
+sys_proc_save(envid_t envid, struct proc_status *ps)
+{
+    struct Env *olde;
+    struct PageInfo *pg;
+    int offset;
+    if (envid2env(envid, &olde, 1) <0)
+        return -E_BAD_ENV;
+    if (user_mem_check(curenv, ps, sizeof(struct proc_status), PTE_U|PTE_W|PTE_P) <0)
+        return -E_FAULT;
+    ps->env = *olde;
+    if ((pg=page_lookup(olde->env_pgdir, (void *)(USTACKTOP-PGSIZE), NULL))==NULL)
+        return -E_FAULT;
+    offset = olde->env_tf.tf_esp+PGSIZE-USTACKTOP;
+    memmove(ps->stack, page2kva(pg), PGSIZE);
+    cprintf("process %x has been saved\n", envid);
+    return 0;
+}
+static int
+sys_proc_restore(envid_t envid, const struct proc_status *ps)
+{
+    struct Env *olde;
+    struct PageInfo *pg;
+    int offset;
+    if (envid2env(envid, &olde, 1) <0)
+        return -E_BAD_ENV;
+    if (user_mem_check(curenv, ps, sizeof(struct proc_status), PTE_U|PTE_P) <0)
+        return -E_FAULT;
+    *olde = ps->env;
+    if ((pg=page_lookup(olde->env_pgdir, (void *)(USTACKTOP-PGSIZE), NULL))==NULL)
+        return -E_FAULT;
+    offset = olde->env_tf.tf_esp+PGSIZE-USTACKTOP;
+    memmove(page2kva(pg), ps->stack, PGSIZE);
+    cprintf("process %x has been restored\n",envid);
+    return 0;
+}
+
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -375,7 +420,19 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         case SYS_env_set_status:
             sys_env_set_status(a1,a2);
             break;
+        
+        case SYS_change_pr:
+            sys_change_pr(a1);
+            break;
+        case SYS_proc_save:
+            sys_proc_save(a1,(void*)a2);
+            break;
+        case SYS_proc_restore:
+            sys_proc_restore(a1,(void*)a2);
+            break;
+        
             
+        
         default:
             panic("here %x\n",syscallno);
             ret = -E_INVAL;

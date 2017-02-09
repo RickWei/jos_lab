@@ -31,11 +31,19 @@ sched_yield(void)
 	// LAB 4: Your code here.
     
     int cur=curenv?ENVX(curenv->env_id):0;
+    struct Env* runenv=NULL;
     for (int i=0; i<NENV; i++) {
         int temp=(cur+i)%NENV;
         if (envs[temp].env_status==ENV_RUNNABLE) {
+            //challenge
+            /*
+            if (runenv==NULL || envs[j].pr < runenv->pr)
+                runenv = envs+j;
+            }
+            if (i==NENV-1&&runenv)
+                env_run(runenv);
+             */
             env_run(envs+temp);
-            break;
         }
     }
     if (curenv->env_status==ENV_RUNNING) {
