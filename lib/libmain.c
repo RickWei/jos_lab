@@ -17,6 +17,25 @@ libmain(int argc, char **argv)
     thisenv=envs+ENVX(sys_getenvid());
     
     //challenge for sfork
+    /*
+    int esp;
+    asm volatile("mov %%esp,%0\n"
+                 "subl $0x80,%%esp\n"
+                 "mov %%esp,%%eax\n"
+                 "mov %1,%%ebx\n"
+                 "mov $0,%%edx\n"
+                 "copy:\n"
+                 "mov (%%ebx),%%ecx\n"
+                 "mov %%ecx,(%%eax)\n"
+                 "add $1,%%eax\n"
+                 "add $1,%%ebx\n"
+                 "add $1,%%edx\n"
+                 "cmpl $0x80,%%edx\n"
+                 "jne copy\n"
+                 :"=m"(esp)
+                 :"m"(thisenv));
+    thisenv=(void*)(esp-0x80);
+     */
     
 	// save the name of the program so that panic() can use it
 	if (argc > 0)

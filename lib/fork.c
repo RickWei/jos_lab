@@ -131,10 +131,20 @@ sfork(void)
         panic("sys_exofork: %e", envid);
     if (envid == 0) {
         // We're the child.
-        // The copied value of the global variable 'thisenv'
-        // is no longer valid (it refers to the parent!).
-        // Fix it and return 0.
-        thisenv = &envs[ENVX(sys_getenvid())];
+        const volatile struct Env* temp=&envs[ENVX(sys_getenvid())];
+        asm volatile("mov %0,%%eax\n"
+                     "mov %1,%%ebx\n"
+                     "mov $0,%%edx\n"
+                     "copy:\n"
+                     "mov (%%ebx),%%ecx\n"
+                     "mov %%ecx,(%%eax)\n"
+                     "add $1,%%eax\n"
+                     "add $1,%%ebx\n"
+                     "add $1,%%edx\n"
+                     "cmpl $0x80,%%edx\n"
+                     "jne copy\n"
+                     :
+                     :"m"(thisenv),"m"(temp));
         return 0;
     }
     

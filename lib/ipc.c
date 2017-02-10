@@ -22,8 +22,9 @@
 int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
-	// LAB 4: Your code here.
+    // LAB 4: Your code here.
     int ret=sys_ipc_recv(pg?pg:(void*)UTOP);
+
     if (ret) {
         *from_env_store=0;
         *perm_store=0;
@@ -31,11 +32,22 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
     }
     if (from_env_store) {
         *from_env_store=thisenv->env_ipc_from;
+        
+        //challenge sfork
+        //*from_env_store=(envs+ENVX(sys_getenvid()))->env_ipc_from;
+        
     }
     if (perm_store){
         *perm_store=thisenv->env_ipc_perm;
+        
+        //challenge sfork
+        //*perm_store=(envs+ENVX(sys_getenvid()))->env_ipc_perm;
     }
     return thisenv->env_ipc_value;
+    
+    //challenge sfork
+    //return (envs+ENVX(sys_getenvid()))->env_ipc_value;
+    
     
 	panic("ipc_recv not implemented");
 	return 0;

@@ -318,7 +318,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     struct Env *e;
     int ret;
     if (ret=envid2env(envid, &e, 0),ret) return ret;
-    //cprintf("sending to %x\n",e->env_id);
     if (!e->env_ipc_recving) return -E_IPC_NOT_RECV;
     e->env_ipc_perm=0;
     e->env_ipc_from=curenv->env_id;

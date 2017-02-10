@@ -362,12 +362,12 @@ void
 page_fault_handler(struct Trapframe *tf)
 {
 	uint32_t fault_va;
-
+    
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
 
 	// Handle kernel-mode page faults.
-
+    
 	// LAB 3: Your code here.
     if ((tf->tf_cs&3)==0){
         cprintf("fault_va: %x\n", fault_va);
