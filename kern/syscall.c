@@ -85,12 +85,12 @@ sys_exofork(void)
 	// will appear to return 0.
 
     // LAB 4: Your code here.
-    
     struct Env *e;
     int ret;
+    extern struct Env* envs;
     if(ret=env_alloc(&e, curenv->env_id),ret)
         return ret;
-    e->env_status==ENV_NOT_RUNNABLE;
+    e->env_status=ENV_NOT_RUNNABLE;
     e->env_tf=curenv->env_tf;
     e->env_tf.tf_regs.reg_eax=0;
     return e->env_id;
@@ -315,6 +315,32 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
+    struct Env *e;
+    int ret;
+    if (ret=envid2env(envid, &e, 0),ret) return ret;
+    //cprintf("sending to %x\n",e->env_id);
+    if (!e->env_ipc_recving) return -E_IPC_NOT_RECV;
+    e->env_ipc_perm=0;
+    e->env_ipc_from=curenv->env_id;
+    if (srcva<(void*)UTOP) {
+        pte_t *pte;
+        struct PageInfo *pg=page_lookup(curenv->env_pgdir,srcva,&pte);
+        if (!pg) return -E_INVAL;
+        if ((*pte&perm)!= perm) return -E_INVAL;
+        if ((perm&PTE_W)&&!(*pte&PTE_W)) return -E_INVAL;
+        if (srcva!=ROUNDDOWN(srcva, PGSIZE)) return -E_INVAL;
+        if (e->env_ipc_dstva<(void*)UTOP) {
+            ret=page_insert(e->env_pgdir,pg,e->env_ipc_dstva,perm);
+            if (ret) return ret;
+            e->env_ipc_perm=perm;
+        }
+    }
+    e->env_ipc_recving=0;
+    e->env_ipc_value=value;
+    e->env_status=ENV_RUNNABLE;
+    e->env_tf.tf_regs.reg_eax=0;
+    return 0;
+    
 	panic("sys_ipc_try_send not implemented");
 }
 
@@ -332,9 +358,18 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 static int
 sys_ipc_recv(void *dstva)
 {
-	// LAB 4: Your code here.
+    // LAB 4: Your code here.
+    if (dstva<(void*)UTOP){
+        if (dstva!=ROUNDDOWN(dstva, PGSIZE))
+            return -E_INVAL;
+    }
+    curenv->env_ipc_recving=1;
+    curenv->env_status=ENV_NOT_RUNNABLE;
+    curenv->env_ipc_dstva=dstva;
+    sys_yield();
+    return 0;
+    
 	panic("sys_ipc_recv not implemented");
-	return 0;
 }
 
 //challenge
@@ -429,19 +464,25 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         
         //challenge
         case SYS_change_pr:
-            sys_change_pr(a1);
+            ret=sys_change_pr(a1);
             break;
         case SYS_proc_save:
-            sys_proc_save(a1,(void*)a2);
+            ret=sys_proc_save(a1,(void*)a2);
             break;
         case SYS_proc_restore:
-            sys_proc_restore(a1,(void*)a2);
+            ret=sys_proc_restore(a1,(void*)a2);
             break;
         /////
         case SYS_env_set_pgfault_upcall:
-            sys_env_set_pgfault_upcall(a1,(void*)a2);
+            ret=sys_env_set_pgfault_upcall(a1,(void*)a2);
             break;
-        
+        case SYS_ipc_try_send:
+            ret=sys_ipc_try_send(a1,a2,(void*)a3,a4);
+            break;
+        case SYS_ipc_recv:
+            ret=sys_ipc_recv((void*)a1);
+            break;
+            
         default:
             panic("here %x\n",syscallno);
             ret = -E_INVAL;

@@ -119,13 +119,15 @@ trap_init(void)
     
     //challenge
     extern void (*trap_fun[])();
-    for (int i=0;i<=16;i++)
+    for (int i=0;i<=19;i++)
         if (i==T_BRKPT)
             SETGATE(idt[i],0,GD_KT,trap_fun[i],3)
             else if (i!=2&&i!=15) {
                 SETGATE(idt[i],0,GD_KT,trap_fun[i],0);
             }
     SETGATE(idt[48],0,GD_KT,trap_fun[48],3);
+    for (int i=0;i<16;i++)
+        SETGATE(idt[IRQ_OFFSET+i],0,GD_KT,trap_fun[IRQ_OFFSET+i],0);
     
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -159,7 +161,7 @@ trap_init_percpu(void)
 	// LAB 4: Your code here:
     
     int i=cpunum();
-    thiscpu->cpu_ts.ts_esp0 = KSTACKTOP;
+    thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
     thiscpu->cpu_ts.ts_ss0 = GD_KD;
     thiscpu->cpu_ts.ts_iomb = sizeof(struct Taskstate);
     
@@ -171,7 +173,7 @@ trap_init_percpu(void)
     
     lidt(&idt_pd);
     
-    
+    /*
     /////////////////////////////////////////
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
@@ -190,7 +192,7 @@ trap_init_percpu(void)
 
 	// Load the IDT
 	lidt(&idt_pd);
-     
+     */
 }
 
 void
@@ -276,7 +278,11 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
-
+    if (tf->tf_trapno==IRQ_OFFSET+IRQ_TIMER) {
+        lapic_eoi();
+        sched_yield();
+        return;
+    }
     
     
 	// Unexpected trap: The user process or the kernel has a bug.
@@ -363,9 +369,11 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
-    
-    if ((tf->tf_cs&3)==0)
+    if ((tf->tf_cs&3)==0){
+        cprintf("fault_va: %x\n", fault_va);
+        cprintf("fault_eip: %x\n", tf->tf_eip);
         panic("Kernel page fault!");
+    }
     
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

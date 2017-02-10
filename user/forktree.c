@@ -33,10 +33,6 @@ forktree(const char *cur)
 void
 umain(int argc, char **argv)
 {
-    //int time1=0,time2=0;
-    //asm volatile("rdtsc\n":"=a"(time1));
 	forktree("");
-    //asm volatile("rdtsc\n":"=a"(time2));
-    //cprintf("cycle %d\n",time2-time1);
 }
 

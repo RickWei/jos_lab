@@ -29,7 +29,6 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-    
     int cur=curenv?ENVX(curenv->env_id):0;
     struct Env* runenv=NULL;
     for (int i=0; i<NENV; i++) {
@@ -46,7 +45,7 @@ sched_yield(void)
             env_run(envs+temp);
         }
     }
-    if (curenv->env_status==ENV_RUNNING) {
+    if (curenv&&curenv->env_status==ENV_RUNNING) {
         env_run(curenv);
     }
     
