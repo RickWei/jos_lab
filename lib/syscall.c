@@ -7,7 +7,6 @@ static inline int32_t
 syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 {
 	int32_t ret;
-
 	// Generic system call: pass system call number in AX,
 	// up to five parameters in DX, CX, BX, DI, SI.
 	// Interrupt kernel with T_SYSCALL.
@@ -19,8 +18,9 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// The last clause tells the assembler that this can
 	// potentially change the condition codes and arbitrary
 	// memory locations.
-
-	asm volatile("int %1\n"
+	
+    ///*
+    asm volatile("int %1\n"
 		     : "=a" (ret)
 		     : "i" (T_SYSCALL),
 		       "a" (num),
@@ -30,12 +30,38 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		       "D" (a4),
 		       "S" (a5)
 		     : "cc", "memory");
-
+    //*/
+    
+    //////////////////////////
+    //challenge
+    //////////////////////////
+    /*
+    asm volatile("pushal");
+    
+    asm volatile goto
+                ("movl $%l5,%%esi\n"
+                 "pushl %%ebp\n"
+                 "movl %%esp,%%ebp\n"
+                 "sysenter\n"
+                 :
+                 :"a" (num),
+                 "d" (a1),
+                 "c" (a2),
+                 "b" (a3),
+                 "D" (a4)
+                 :
+                 :after_sysenter_label);
+after_sysenter_label:
+    asm volatile("popl %%ebp\n"
+                 "popal\n"
+                 "mov %%eax,%0"
+                 : "=a" (ret));
+    */
 	if(check && ret > 0)
 		panic("syscall %d returned %d (> 0)", num, ret);
-
 	return ret;
 }
+
 
 void
 sys_cputs(const char *s, size_t len)
@@ -117,3 +143,14 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
+//challenge
+int
+sys_proc_save(envid_t envid, struct proc_status *ps)
+{
+    return syscall(SYS_proc_save, 1, envid, (uint32_t)ps, 0, 0, 0);
+}
+int
+sys_proc_restore(envid_t envid, const struct proc_status *ps)
+{
+    return syscall(SYS_proc_restore, 1, envid, (uint32_t)ps, 0, 0, 0);
+}

@@ -17,6 +17,10 @@ enum {
 	SYS_yield,
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
+    //challenge
+    SYS_change_pr,
+    SYS_proc_save,
+    SYS_proc_restore,
 	NSYSCALLS
 };
 
