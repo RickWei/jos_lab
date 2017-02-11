@@ -3,7 +3,9 @@
 #include <inc/stdio.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/x86.h>
 
+#include <kern/syscall.h>
 #include <kern/monitor.h>
 #include <kern/console.h>
 #include <kern/pmap.h>
@@ -19,6 +21,16 @@
 
 static void boot_aps(void);
 
+#define IA32_SYSENTER_CS 0x174
+#define IA32_SYSENTER_ESP 0x175
+#define IA32_SYSENTER_EIP 0x176
+
+void sysenter_init(void){
+    wrmsr(IA32_SYSENTER_CS,GD_KT,0);
+    wrmsr(IA32_SYSENTER_ESP,KSTACKTOP,0);
+    wrmsr(IA32_SYSENTER_EIP,syscall_fast,0);
+    return;
+}
 
 void
 i386_init(void)
@@ -41,7 +53,9 @@ i386_init(void)
 
 	// Lab 3 user environment initialization functions
 	env_init();
-	trap_init();
+    trap_init();
+    //challenge
+    sysenter_init();
 
 	// Lab 4 multiprocessor initialization functions
 	mp_init();
@@ -56,7 +70,8 @@ i386_init(void)
 
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
-
+    lock_kernel();
+    
 	// Starting non-boot CPUs
 	boot_aps();
 
@@ -73,12 +88,12 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_icode, ENV_TYPE_USER);
+	//ENV_CREATE(user_icode, ENV_TYPE_USER);
+    ENV_CREATE(user_spawnhello, ENV_TYPE_USER);
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.
 	kbd_intr();
-
 	// Schedule and run the first user environment!
 	sched_yield();
 }
@@ -99,7 +114,6 @@ boot_aps(void)
 	// Write entry code to unused memory at MPENTRY_PADDR
 	code = KADDR(MPENTRY_PADDR);
 	memmove(code, mpentry_start, mpentry_end - mpentry_start);
-
 	// Boot each AP one at a time
 	for (c = cpus; c < cpus + ncpu; c++) {
 		if (c == cpus + cpunum())  // We've started already.
@@ -133,9 +147,11 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
-
+    lock_kernel();
+    sched_yield();
+    
 	// Remove this after you finish Exercise 4
-	for (;;);
+	//for (;;);
 }
 
 /*

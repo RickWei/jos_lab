@@ -14,13 +14,13 @@ umain(int argc, char **argv)
 		ipc_send(who, 0, 0, 0);
 	}
 
-	while (1) {
-		uint32_t i = ipc_recv(&who, 0, 0);
+    while (1) {
+        uint32_t i = ipc_recv(&who, 0, 0);
 		cprintf("%x got %d from %x\n", sys_getenvid(), i, who);
 		if (i == 10)
 			return;
-		i++;
-		ipc_send(who, i, 0, 0);
+        i++;
+        ipc_send(who, i, 0, 0);
 		if (i == 10)
 			return;
 	}

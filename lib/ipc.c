@@ -22,7 +22,32 @@
 int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
-	// LAB 4: Your code here.
+    // LAB 4: Your code here.
+    int ret=sys_ipc_recv(pg?pg:(void*)UTOP);
+    if (ret) {
+        *from_env_store=0;
+        *perm_store=0;
+        return ret;
+    }
+    if (from_env_store) {
+        *from_env_store=thisenv->env_ipc_from;
+        
+        //challenge sfork
+        //*from_env_store=(envs+ENVX(sys_getenvid()))->env_ipc_from;
+        
+    }
+    if (perm_store){
+        *perm_store=thisenv->env_ipc_perm;
+        
+        //challenge sfork
+        //*perm_store=(envs+ENVX(sys_getenvid()))->env_ipc_perm;
+    }
+    return thisenv->env_ipc_value;
+    
+    //challenge sfork
+    //return (envs+ENVX(sys_getenvid()))->env_ipc_value;
+    
+    
 	panic("ipc_recv not implemented");
 	return 0;
 }
@@ -39,6 +64,13 @@ void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
+    int ret;
+    while (ret=sys_ipc_try_send(to_env,val,pg?pg:(void*)UTOP,perm),1) {
+        if (ret==0) return;
+        if (ret!=-E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV, %x %x", ret,-E_INVAL);
+        sys_yield();
+    }
+    
 	panic("ipc_send not implemented");
 }
 

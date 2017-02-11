@@ -18,6 +18,11 @@ enum {
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
 	SYS_time_msec,
+    //challenge
+    SYS_change_pr,
+    SYS_proc_save,
+    SYS_proc_restore,
+    SYS_exec,
 	NSYSCALLS
 };
 

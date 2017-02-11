@@ -54,7 +54,10 @@ struct Env {
 	unsigned env_status;		// Status of the environment
 	uint32_t env_runs;		// Number of times environment has run
 	int env_cpunum;			// The CPU that the env is running on
-
+    
+    //challenge
+    int pr;
+    
 	// Address space
 	pde_t *env_pgdir;		// Kernel virtual address of page dir
 
@@ -68,5 +71,12 @@ struct Env {
 	envid_t env_ipc_from;		// envid of the sender
 	int env_ipc_perm;		// Perm of page mapping received
 };
+
+//challenge
+struct proc_status {
+    struct Env env;
+    char stack[PGSIZE];
+};
+
 
 #endif // !JOS_INC_ENV_H

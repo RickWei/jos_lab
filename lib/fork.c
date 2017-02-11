@@ -17,7 +17,6 @@ pgfault(struct UTrapframe *utf)
 	void *addr = (void *) utf->utf_fault_va;
 	uint32_t err = utf->utf_err;
 	int r;
-
 	// Check that the faulting access was (1) a write, and (2) to a
 	// copy-on-write page.  If not, panic.
 	// Hint:
@@ -25,7 +24,8 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
-
+    if (!((err&FEC_WR)&&(uvpt[PGNUM(addr)]&PTE_COW)))
+        panic("not write or copy-on-write");
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
 	// page to the old page's address.
@@ -33,7 +33,14 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
-
+    addr=ROUNDDOWN(addr, PGSIZE);
+    sys_page_alloc(0,PFTEMP,PTE_W|PTE_U|PTE_P);
+    memcpy(PFTEMP,addr,PGSIZE);
+    sys_page_map(0,PFTEMP,0,addr,PTE_W|PTE_U|PTE_P);
+    sys_page_unmap(0,PFTEMP);
+    return;
+    
+    
 	panic("pgfault not implemented");
 }
 
@@ -54,6 +61,17 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
+    void *addr=(void*)(pn*PGSIZE);
+    if (uvpt[pn]&PTE_SHARE) {
+        sys_page_map(0,addr,envid,addr,PTE_SYSCALL);
+    }
+    else if ((uvpt[pn]&PTE_W)||(uvpt[pn]&PTE_COW)) {
+        sys_page_map(0,addr,envid,addr,PTE_COW|PTE_U|PTE_P);
+        sys_page_map(0,addr,0,addr,PTE_COW|PTE_U|PTE_P);
+    }
+    else sys_page_map(0,addr,envid,addr,PTE_U|PTE_P);
+    return 0;
+    
 	panic("duppage not implemented");
 	return 0;
 }
@@ -78,6 +96,31 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
+    set_pgfault_handler(pgfault);
+    envid_t envid=sys_exofork();
+    if (envid < 0)
+        panic("sys_exofork: %e", envid);
+    if (envid == 0) {
+        // We're the child.
+        // The copied value of the global variable 'thisenv'
+        // is no longer valid (it refers to the parent!).
+        // Fix it and return 0.
+        thisenv = &envs[ENVX(sys_getenvid())];
+        return 0;
+    }
+    
+    // We're the parent.
+    for (int addr=0; addr<USTACKTOP; addr+=PGSIZE)
+        if ((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)
+            &&(uvpt[PGNUM(addr)]&PTE_U)) {
+            duppage(envid, PGNUM(addr));
+        }
+    sys_page_alloc(envid,(void *)(UXSTACKTOP-PGSIZE),PTE_U|PTE_W|PTE_P);
+    extern void _pgfault_upcall();
+    sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
+    sys_env_set_status(envid, ENV_RUNNABLE);
+    return envid;
+    
 	panic("fork not implemented");
 }
 
@@ -85,6 +128,51 @@ fork(void)
 int
 sfork(void)
 {
+    set_pgfault_handler(pgfault);
+    envid_t envid=sys_exofork();
+    if (envid < 0)
+        panic("sys_exofork: %e", envid);
+    if (envid == 0) {
+        // We're the child.
+        const volatile struct Env* temp=&envs[ENVX(sys_getenvid())];
+        asm volatile("mov %0,%%eax\n"
+                     "mov %1,%%ebx\n"
+                     "mov $0,%%edx\n"
+                     "copy:\n"
+                     "mov (%%ebx),%%ecx\n"
+                     "mov %%ecx,(%%eax)\n"
+                     "add $1,%%eax\n"
+                     "add $1,%%ebx\n"
+                     "add $1,%%edx\n"
+                     "cmpl $0x80,%%edx\n"
+                     "jne copy\n"
+                     :
+                     :"m"(thisenv),"m"(temp));
+        return 0;
+    }
+    
+    // We're the parent.
+    uint32_t addr;
+    for (addr=USTACKTOP-PGSIZE; addr>0; addr-=PGSIZE)
+        if ((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)
+            &&(uvpt[PGNUM(addr)]&PTE_U)) {
+            duppage(envid, PGNUM(addr));
+        }
+        else{
+            break;
+        }
+    for (; addr!=0; addr-=PGSIZE)
+        if ((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)
+            &&(uvpt[PGNUM(addr)]&PTE_U)) {
+            sys_page_map(0,(void*)addr,envid,(void*)addr,uvpt[PGNUM(addr)]);
+        }
+    
+    sys_page_alloc(envid,(void *)(UXSTACKTOP-PGSIZE),PTE_U|PTE_W|PTE_P);
+    extern void _pgfault_upcall();
+    sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
+    sys_env_set_status(envid, ENV_RUNNABLE);
+    return envid;
+
 	panic("sfork not implemented");
 	return -E_INVAL;
 }

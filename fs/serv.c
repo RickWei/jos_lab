@@ -108,14 +108,15 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 	int fileid;
 	int r;
 	struct OpenFile *o;
-
+    
+    
 	if (debug)
 		cprintf("serve_open %08x %s 0x%x\n", envid, req->req_path, req->req_omode);
 
 	// Copy in the path, making sure it's null-terminated
 	memmove(path, req->req_path, MAXPATHLEN);
 	path[MAXPATHLEN-1] = 0;
-
+    
 	// Find an open file ID
 	if ((r = openfile_alloc(&o)) < 0) {
 		if (debug)
@@ -123,7 +124,7 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 		return r;
 	}
 	fileid = r;
-
+    
 	// Open the file
 	if (req->req_omode & O_CREAT) {
 		if ((r = file_create(path, &f)) < 0) {
@@ -141,7 +142,8 @@ try_open:
 			return r;
 		}
 	}
-
+    
+    
 	// Truncate
 	if (req->req_omode & O_TRUNC) {
 		if ((r = file_set_size(f, 0)) < 0) {
@@ -172,7 +174,7 @@ try_open:
 	// store its permission in *perm_store
 	*pg_store = o->o_fd;
 	*perm_store = PTE_P|PTE_U|PTE_W|PTE_SHARE;
-
+    
 	return 0;
 }
 
@@ -214,7 +216,15 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+    struct OpenFile *o;
+    int r;
+    if (r=openfile_lookup(envid,req->req_fileid, &o),r<0)
+        return r;
+    if (r=file_read(o->o_file,ret->ret_buf,MIN(req->req_n, PGSIZE),o->o_fd->fd_offset),r<0) {
+        return r;
+    }
+    o->o_fd->fd_offset+=r;
+	return r;
 }
 
 
@@ -229,6 +239,16 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
+    struct OpenFile *o;
+    int r;
+    if (r=openfile_lookup(envid,req->req_fileid, &o),r)
+        return r;
+    if (r=file_write(o->o_file,req->req_buf,req->req_n,o->o_fd->fd_offset),r<0) {
+        return r;
+    }
+    o->o_fd->fd_offset+=r;
+    return r;
+    
 	panic("serve_write not implemented");
 }
 
@@ -300,7 +320,7 @@ serve(void)
 
 	while (1) {
 		perm = 0;
-		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
+        req = ipc_recv((int32_t *) &whom, fsreq, &perm);
 		if (debug)
 			cprintf("fs req %d from %08x [page %08x: %s]\n",
 				req, whom, uvpt[PGNUM(fsreq)], fsreq);
@@ -320,7 +340,8 @@ serve(void)
 		} else {
 			cprintf("Invalid request code %d from %08x\n", req, whom);
 			r = -E_INVAL;
-		}
+        }
+        
 		ipc_send(whom, r, pg, perm);
 		sys_page_unmap(0, fsreq);
 	}
