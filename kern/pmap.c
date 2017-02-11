@@ -505,24 +505,20 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
-    pte_t* pte=pgdir_walk(pgdir,va,0);
-    if (pte) {
-        if(*pte) page_remove(pgdir,va);
-        if (pp==page_free_list) {
-            page_free_list=page_free_list->pp_link;
-        }
+    pte_t* pte=pgdir_walk(pgdir,va,1);
+    if (!pte) {
+        return -E_NO_MEM;
     }
-    else{
-        pte=pgdir_walk(pgdir,va,1);
-        if (!pte) {
-            return -E_NO_MEM;
+    if (*pte&PTE_P) {
+        if(PTE_ADDR(*pte)==page2pa(pp)){
+            *pte=page2pa(pp)|perm|PTE_P;
+            return 0;
         }
+        page_remove(pgdir,va);
     }
-    physaddr_t phyadd=page2pa(pp);
-    *pte=phyadd|perm|PTE_P;
+    *pte=page2pa(pp)|perm|PTE_P;
     pp->pp_ref++;
-    
-	return 0;
+    return 0;
 }
 
 //

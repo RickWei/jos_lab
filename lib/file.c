@@ -20,7 +20,6 @@ fsipc(unsigned type, void *dstva)
 		fsenv = ipc_find_env(ENV_TYPE_FS);
 
 	static_assert(sizeof(fsipcbuf) == PGSIZE);
-
 	if (debug)
 		cprintf("[%08x] fsipc %d %08x\n", thisenv->env_id, type, *(uint32_t *)&fsipcbuf);
 
@@ -70,7 +69,6 @@ open(const char *path, int mode)
 
 	int r;
 	struct Fd *fd;
-
 	if (strlen(path) >= MAXPATHLEN)
 		return -E_BAD_PATH;
 
@@ -79,12 +77,12 @@ open(const char *path, int mode)
 
 	strcpy(fsipcbuf.open.req_path, path);
 	fsipcbuf.open.req_omode = mode;
-
+    
 	if ((r = fsipc(FSREQ_OPEN, fd)) < 0) {
 		fd_close(fd, 0);
 		return r;
 	}
-
+    
 	return fd2num(fd);
 }
 
@@ -140,7 +138,16 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// careful: fsipcbuf.write.req_buf is only so large, but
 	// remember that write is always allowed to write *fewer*
 	// bytes than requested.
-	// LAB 5: Your code here
+    // LAB 5: Your code here
+    if(n>sizeof(fsipcbuf.write.req_buf))
+        n=sizeof(fsipcbuf.write.req_buf);
+    int r;
+    fsipcbuf.write.req_fileid=fd->fd_file.id;
+    fsipcbuf.write.req_n=n;
+    memmove(fsipcbuf.write.req_buf,buf,n);
+    if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
+        return r;
+    return r;
 	panic("devfile_write not implemented");
 }
 

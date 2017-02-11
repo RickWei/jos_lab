@@ -20,7 +20,7 @@ umain(int argc, char **argv)
 
 	cprintf("icode: close /motd\n");
 	close(fd);
-
+    
 	cprintf("icode: spawn /init\n");
 	if ((r = spawnl("/init", "init", "initarg1", "initarg2", (char*)0)) < 0)
 		panic("icode: spawn /init: %e", r);

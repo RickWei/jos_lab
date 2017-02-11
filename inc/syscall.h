@@ -21,6 +21,7 @@ enum {
     SYS_change_pr,
     SYS_proc_save,
     SYS_proc_restore,
+    SYS_exec,
 	NSYSCALLS
 };
 

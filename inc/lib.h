@@ -62,6 +62,7 @@ int	sys_ipc_recv(void *rcv_pg);
 int sys_change_pr(int pr);
 int sys_proc_save(envid_t envid, struct proc_status *ps);
 int sys_proc_restore(envid_t envid, const struct proc_status *ps);
+int sys_exec(uint32_t eip, uint32_t esp, void *ph, uint32_t phnum);
 
 // This must be inlined.  Exercise for reader: why?
 static inline envid_t __attribute__((always_inline))

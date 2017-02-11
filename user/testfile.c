@@ -9,10 +9,8 @@ xopen(const char *path, int mode)
 {
 	extern union Fsipc fsipcbuf;
 	envid_t fsenv;
-	
 	strcpy(fsipcbuf.open.req_path, path);
 	fsipcbuf.open.req_omode = mode;
-
 	fsenv = ipc_find_env(ENV_TYPE_FS);
 	ipc_send(fsenv, FSREQ_OPEN, &fsipcbuf, PTE_P | PTE_W | PTE_U);
 	return ipc_recv(NULL, FVA, NULL);
@@ -26,19 +24,19 @@ umain(int argc, char **argv)
 	struct Fd fdcopy;
 	struct Stat st;
 	char buf[512];
-
 	// We open files manually first, to avoid the FD layer
 	if ((r = xopen("/not-found", O_RDONLY)) < 0 && r != -E_NOT_FOUND)
 		panic("serve_open /not-found: %e", r);
 	else if (r >= 0)
 		panic("serve_open /not-found succeeded!");
-
 	if ((r = xopen("/newmotd", O_RDONLY)) < 0)
 		panic("serve_open /newmotd: %e", r);
+    
 	if (FVA->fd_dev_id != 'f' || FVA->fd_offset != 0 || FVA->fd_omode != O_RDONLY)
 		panic("serve_open did not fill struct Fd correctly\n");
 	cprintf("serve_open is good\n");
 
+    
 	if ((r = devfile.dev_stat(FVA, &st)) < 0)
 		panic("file_stat: %e", r);
 	if (strlen(msg) != st.st_size)
@@ -51,7 +49,7 @@ umain(int argc, char **argv)
 	if (strcmp(buf, msg) != 0)
 		panic("file_read returned wrong data");
 	cprintf("file_read is good\n");
-
+    
 	if ((r = devfile.dev_close(FVA)) < 0)
 		panic("file_close: %e", r);
 	cprintf("file_close is good\n");
@@ -62,7 +60,7 @@ umain(int argc, char **argv)
 	// FD page.
 	fdcopy = *FVA;
 	sys_page_unmap(0, FVA);
-
+    
 	if ((r = devfile.dev_read(&fdcopy, buf, sizeof buf)) != -E_INVAL)
 		panic("serve_read does not handle stale fileids correctly: %e", r);
 	cprintf("stale fileid is good\n");

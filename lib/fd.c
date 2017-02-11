@@ -114,7 +114,7 @@ fd_close(struct Fd *fd, bool must_exist)
 	}
 	// Make sure fd is unmapped.  Might be a no-op if
 	// (*dev->dev_close)(fd) already unmapped it.
-	(void) sys_page_unmap(0, fd);
+    (void) sys_page_unmap(0, fd);
 	return r;
 }
 

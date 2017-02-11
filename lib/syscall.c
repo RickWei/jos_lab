@@ -154,3 +154,8 @@ sys_proc_restore(envid_t envid, const struct proc_status *ps)
 {
     return syscall(SYS_proc_restore, 1, envid, (uint32_t)ps, 0, 0, 0);
 }
+int
+sys_exec(uint32_t eip, uint32_t esp, void *ph, uint32_t phnum)
+{
+    return syscall(SYS_exec, 0, eip, esp, (uint32_t)ph, phnum, 0);
+}

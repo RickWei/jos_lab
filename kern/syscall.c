@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/elf.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -134,6 +135,17 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// LAB 5: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
+    struct Env* e;
+    if (envid2env(envid,&e,1)<0) {
+        return -E_BAD_ENV;
+    }
+    user_mem_assert(e,tf,sizeof(struct Trapframe),PTE_U);
+    e->env_tf=*tf;
+    e->env_tf.tf_cs=GD_UT|3;
+    e->env_tf.tf_eflags|=FL_IF;
+    
+    return 0;
+    
 	panic("sys_env_set_trapframe not implemented");
 }
 
@@ -197,7 +209,6 @@ sys_page_alloc(envid_t envid, void *va, int perm)
     
     struct PageInfo *pg = page_alloc(1);
     if (!pg) return -E_NO_MEM;
-    pg->pp_ref++;
     ret=page_insert(e->env_pgdir,pg,va,perm);
     if (ret) {
         page_free(pg);
@@ -323,6 +334,7 @@ sys_page_unmap(envid_t envid, void *va)
 //		current environment's address space.
 //	-E_NO_MEM if there's not enough memory to map srcva in envid's
 //		address space.
+
 static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
@@ -337,7 +349,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
         pte_t *pte;
         struct PageInfo *pg=page_lookup(curenv->env_pgdir,srcva,&pte);
         if (!pg) return -E_INVAL;
-        if ((*pte&perm)!= perm) return -E_INVAL;
+        int flag=PTE_U|PTE_P;
+        if ((perm&flag)!=flag) return -E_INVAL;
+        
+        //if (((*pte)&perm)!= perm) return -E_INVAL;
         if ((perm&PTE_W)&&!(*pte&PTE_W)) return -E_INVAL;
         if (srcva!=ROUNDDOWN(srcva, PGSIZE)) return -E_INVAL;
         if (e->env_ipc_dstva<(void*)UTOP) {
@@ -426,6 +441,46 @@ sys_proc_restore(envid_t envid, const struct proc_status *ps)
     cprintf("process %x has been restored\n",envid);
     return 0;
 }
+static int
+sys_exec(uint32_t eip, uint32_t esp, void * v_ph, uint32_t phnum)
+{
+    
+    curenv->env_tf.tf_eip = eip;
+    curenv->env_tf.tf_esp = esp;
+    
+    int perm, i;
+    uint32_t tmp = 0xe0000000;
+    uint32_t va, end;
+    struct PageInfo * pg;
+    
+    struct Proghdr * ph = (struct Proghdr *) v_ph;
+    for (i = 0; i < phnum; i++, ph++) {
+        if (ph->p_type != ELF_PROG_LOAD)
+            continue;
+        perm = PTE_P | PTE_U;
+        if (ph->p_flags & ELF_PROG_FLAG_WRITE)
+            perm |= PTE_W;
+        
+        end = ROUNDUP(ph->p_va + ph->p_memsz, PGSIZE);
+        for (va = ROUNDDOWN(ph->p_va, PGSIZE); va != end; tmp += PGSIZE, va += PGSIZE) {
+            if ((pg = page_lookup(curenv->env_pgdir, (void *)tmp, NULL)) == NULL)
+                return -E_NO_MEM;
+            if (page_insert(curenv->env_pgdir, pg, (void *)va, perm) < 0)
+                return -E_NO_MEM;
+            page_remove(curenv->env_pgdir, (void *)tmp);
+        }
+    }
+    
+    if ((pg = page_lookup(curenv->env_pgdir, (void *)tmp, NULL)) == NULL)
+        return -E_NO_MEM;
+    if (page_insert(curenv->env_pgdir, pg, (void *)(USTACKTOP - PGSIZE), PTE_P|PTE_U|PTE_W) < 0)
+        return -E_NO_MEM;
+    page_remove(curenv->env_pgdir, (void *)tmp);
+    
+    env_run(curenv);
+    return 0;
+}
+
 
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -493,9 +548,16 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         case SYS_ipc_recv:
             ret=sys_ipc_recv((void*)a1);
             break;
+        case SYS_env_set_trapframe:
+            sys_env_set_trapframe(a1,(void*)a2);
+            break;
+        case SYS_exec:
+            ret=sys_exec((uint32_t)a1, (uint32_t)a2, (void *)a3, (uint32_t)a4);
+            break;
+            
             
         default:
-            panic("here %x\n",syscallno);
+            panic("here %e\n",syscallno);
             ret = -E_INVAL;
     }
     return ret;
