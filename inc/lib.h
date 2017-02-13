@@ -22,6 +22,7 @@
 #include <inc/args.h>
 #include <inc/malloc.h>
 #include <inc/ns.h>
+#include <kern/e1000.h>
 
 #define USED(x)		(void)(x)
 
@@ -66,6 +67,10 @@ int sys_change_pr(int pr);
 int sys_proc_save(envid_t envid, struct proc_status *ps);
 int sys_proc_restore(envid_t envid, const struct proc_status *ps);
 int sys_exec(uint32_t eip, uint32_t esp, void *ph, uint32_t phnum);
+
+//lab6
+int sys_tx_pkt(struct tx_desc *td);
+int sys_rx_pkt(struct rx_desc *td);
 
 // This must be inlined.  Exercise for reader: why?
 static inline envid_t __attribute__((always_inline))

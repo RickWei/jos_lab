@@ -232,7 +232,6 @@ jif_init(struct netif *netif)
     }
 
     output_envid = (envid_t *)netif->state;
-
     netif->state = jif;
     netif->output = jif_output;
     netif->linkoutput = low_level_output;

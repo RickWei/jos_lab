@@ -165,3 +165,13 @@ sys_exec(uint32_t eip, uint32_t esp, void *ph, uint32_t phnum)
 {
     return syscall(SYS_exec, 0, eip, esp, (uint32_t)ph, phnum, 0);
 }
+
+//lab6
+int sys_tx_pkt(struct tx_desc *td)
+{
+    return syscall(SYS_tx_pkt, 0, (uint32_t) td, 0, 0, 0, 0);
+}
+int sys_rx_pkt(struct rx_desc *rd)
+{
+    return syscall(SYS_rx_pkt, 0, (uint32_t) rd, 0, 0, 0, 0);
+}

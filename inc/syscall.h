@@ -23,6 +23,10 @@ enum {
     SYS_proc_save,
     SYS_proc_restore,
     SYS_exec,
+    //lab6 send
+    SYS_tx_pkt,
+    //lab6 receive
+    SYS_rx_pkt,
 	NSYSCALLS
 };
 

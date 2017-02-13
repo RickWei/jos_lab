@@ -13,6 +13,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -404,6 +405,7 @@ static int
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
+    return time_msec();
 	panic("sys_time_msec not implemented");
 }
 
@@ -490,6 +492,49 @@ sys_exec(uint32_t eip, uint32_t esp, void * v_ph, uint32_t phnum)
     return 0;
 }
 
+//lab6 send packet
+static int
+sys_tx_pkt(struct tx_desc *td) {
+    struct PageInfo *pp;
+    pp=page_lookup(curenv->env_pgdir, (void *)(uint32_t)(td->addr),0);
+    td->addr=page2pa(pp)|PGOFF(td->addr);
+    while(1) {
+        if (e1000_put_tx_desc(td) == 0) {
+            break;
+        }
+    }
+    return 0;
+}
+void
+user_mem_page_replace(uintptr_t va, struct PageInfo *pt)
+{
+    user_mem_assert(curenv, (const void*)va, PGSIZE, PTE_U | PTE_P);
+    pte_t *pte;
+    struct PageInfo *page = page_lookup(curenv->env_pgdir, (void *)va, &pte);
+    int ref = page->pp_ref;
+    page->pp_ref = pt->pp_ref;
+    pt->pp_ref = ref;
+    *pte = page2pa(pt) | PGOFF(*pte);
+    tlb_invalidate(curenv->env_pgdir, (void*)va);
+    return;
+}
+
+static int
+sys_rx_pkt(struct rx_desc *rd) {
+    int r;
+    struct rx_desc kr=*rd;
+    struct PageInfo *pp;
+    pp=page_lookup(curenv->env_pgdir, (void *)(uint32_t)(kr.addr),0);
+    kr.addr=page2pa(pp)|PGOFF(kr.addr);
+    r=e1000_get_rx_desc(&kr);
+    if (r!=0) {
+        return r;
+    }
+    user_mem_page_replace(rd->addr, pa2page(kr.addr));
+    kr.addr=rd->addr;
+    *rd=kr;
+    return 0;
+}
 
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -547,6 +592,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         case SYS_proc_restore:
             ret=sys_proc_restore(a1,(void*)a2);
             break;
+        case SYS_exec:
+            ret=sys_exec((uint32_t)a1, (uint32_t)a2, (void *)a3, (uint32_t)a4);
+            break;
         /////
         case SYS_env_set_pgfault_upcall:
             ret=sys_env_set_pgfault_upcall(a1,(void*)a2);
@@ -560,8 +608,15 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         case SYS_env_set_trapframe:
             sys_env_set_trapframe(a1,(void*)a2);
             break;
-        case SYS_exec:
-            ret=sys_exec((uint32_t)a1, (uint32_t)a2, (void *)a3, (uint32_t)a4);
+        case SYS_time_msec:
+            ret=sys_time_msec();
+            break;
+        //lab6
+        case SYS_tx_pkt:
+            ret=sys_tx_pkt((void*)a1);
+            break;
+        case SYS_rx_pkt:
+            ret=sys_rx_pkt((void*)a1);
             break;
             
             
