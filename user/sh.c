@@ -269,8 +269,7 @@ umain(int argc, char **argv)
 {
 	int r, interactive, echocmds;
 	struct Argstate args;
-
-	interactive = '?';
+    interactive = '?';
 	echocmds = 0;
 	argstart(&argc, argv, &args);
 	while ((r = argnext(&args)) >= 0)

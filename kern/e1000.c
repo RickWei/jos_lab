@@ -37,7 +37,10 @@ int pci_e1000_attach(struct pci_func *pcif){
     tpg|=4<<10;
     tpg|=6<<20;
     tpg&=0x3FFFFFFF;
+    
+    //cprintf("%x\n", *E1000_REG(E1000_TIPG));
     *E1000_REG(E1000_TIPG)=tpg;
+    //cprintf("%x\n", *E1000_REG(E1000_TIPG));
     /////////
     
     
